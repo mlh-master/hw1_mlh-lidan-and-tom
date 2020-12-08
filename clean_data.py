@@ -17,7 +17,17 @@ def rm_ext_and_nan(CTG_features, extra_feature):
     :return: A dictionary of clean CTG called c_ctg
     """
     # ------------------ IMPLEMENT YOUR CODE HERE:------------------------------
+    CTG_features = CTG_features.drop(extra_feature, axis=1)
+
+    CTG_features = CTG_features.apply(pd.to_numeric, errors='coerce')
+
     c_ctg = {}
+    keys = CTG_features.columns;
+
+    for i in keys:
+        c_ctg[i] = CTG_features[i].dropna()
+
+        
     # --------------------------------------------------------------------------
     return c_ctg
 
@@ -31,6 +41,13 @@ def nan2num_samp(CTG_features, extra_feature):
     """
     c_cdf = {}
     # ------------------ IMPLEMENT YOUR CODE HERE:------------------------------
+    CTG_features = CTG_features.drop(extra_feature, axis=1)
+    CTG_features = CTG_features.apply(pd.to_numeric, errors='coerce')
+
+    keys = CTG_features.columns;
+
+    for i in keys:
+        c_cdf[i] = CTG_features[i].fillna(pd.Series(np.random.choice(CTG_features[i], size=len(CTG_features.index))))
 
     # -------------------------------------------------------------------------
     return pd.DataFrame(c_cdf)
@@ -43,6 +60,12 @@ def sum_stat(c_feat):
     :return: Summary statistics as a dicionary of dictionaries (called d_summary) as explained in the notebook
     """
     # ------------------ IMPLEMENT YOUR CODE HERE:------------------------------
+    d_summary = {}
+
+
+    for x in c_feat.columns:
+        tmp = c_feat.describe()[x].to_dict()
+        d_summary[x] =  {'min': tmp['min'], 'Q1': tmp['25%'], 'median': tmp['50%'], 'Q3': tmp['75%'], 'max': tmp['max']  }  
 
     # -------------------------------------------------------------------------
     return d_summary
@@ -57,6 +80,21 @@ def rm_outlier(c_feat, d_summary):
     """
     c_no_outlier = {}
     # ------------------ IMPLEMENT YOUR CODE HERE:------------------------------
+    column_names = c_feat.columns;
+
+    print()
+
+    for i in column_names:
+        Q1_tmp = d_summary[i]['Q1']
+        Q3_tmp = d_summary[i]['Q3']
+        
+        IQR_tmp = Q3_tmp - Q1_tmp
+        low_thresh = Q1_tmp - 1.5 * IQR_tmp
+        up_thresh = Q3_tmp + 1.5 * IQR_tmp
+        
+        no_low_out = c_feat[c_feat[i] >= low_thresh][i]
+        no_up_ou = no_low_out[c_feat[i] <= up_thresh]
+        c_no_outlier[i] = no_up_ou
 
     # -------------------------------------------------------------------------
     return pd.DataFrame(c_no_outlier)
@@ -71,7 +109,16 @@ def phys_prior(c_cdf, feature, thresh):
     :return: An array of the "filtered" feature called filt_feature
     """
     # ------------------ IMPLEMENT YOUR CODE HERE:-----------------------------
+    
+    c_no_outlier = np.array([])
+    
+    thresh_low = thresh[0]
+    thresh_up = thresh[1]
+    no_low_outlier = c_cdf[feature][c_cdf[feature] > thresh_low]
+    no_up_outlier = no_low_outlier[c_cdf[feature] < thresh_up]
+    # c_no_outlier[feature] = no_up_outlier
 
+    filt_feature = no_up_outlier
     # -------------------------------------------------------------------------
     return filt_feature
 
@@ -87,6 +134,49 @@ def norm_standard(CTG_features, selected_feat=('LB', 'ASTV'), mode='none', flag=
     """
     x, y = selected_feat
     # ------------------ IMPLEMENT YOUR CODE HERE:------------------------------
+    nsd_res = {}
+    
+    features = CTG_features.columns
+    
+    for counter, value in enumerate(features):
 
+        if mode is "standard":
+            
+            mean_SF = np.mean(CTG_features[value])
+            sig_SF  = np.std(CTG_features[value])
+            Z = (CTG_features[value]-mean_SF)/sig_SF
+            nsd_res[value] = Z
+
+
+        if  mode is 'MinMax':
+            min_SF = np.amin(CTG_features[value])
+            max_SF = np.amax(CTG_features[value])
+            Xnorm_SF = (CTG_features[value]-min_SF)/(max_SF-min_SF)
+            nsd_res[value] = Xnorm_SF
+
+        if (mode == 'mean'):
+            mean_SF = np.mean(CTG_features[value])
+            min_SF = np.amin(CTG_features[value])
+            max_SF = np.amax(CTG_features[value])
+            Xmean_SF = (CTG_features[value]-mean_SF)/(max_SF -min_SF)
+            nsd_res[value] = Xmean_SF
+
+        if (mode == 'none'):
+            nsd_res[value] = CTG_features[value]
+
+    nsd_res = pd.DataFrame(nsd_res) 
+    selected_feat_dict = pd.DataFrame({x: nsd_res[x] , y: nsd_res[y]})
+    
+    if flag:
+        xlbl = ['Values','Values']
+        axarr = selected_feat_dict.hist(column=[x, y], bins=100,layout = (1, 2),figsize=(20, 10))
+
+        for i,ax in enumerate(axarr.flatten()):
+            ax.set_xlabel(xlbl[i])
+            ax.set_ylabel("Count")
+
+        plt.show()
+
+    
     # -------------------------------------------------------------------------
     return pd.DataFrame(nsd_res)

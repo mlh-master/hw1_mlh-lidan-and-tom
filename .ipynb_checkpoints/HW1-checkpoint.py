@@ -245,8 +245,9 @@ plt.show()
 
 from clean_data import phys_prior as phpr
 
-feature = 'LB' # change this feature
-thresh = 500 # FHR cannot be more then 500 bpm. Change this threshold accordingly to the feature
+feature = 'ASTV' # change this feature
+thresh = [0, 100] # percentage of time with abnormal short term variability  (SisPorto), cannot be above 100
+                  # percentage of time with abnormal short term variability  (SisPorto), cannot be below 0
 filt_feature = phpr(c_samp, feature, thresh)
 
 
